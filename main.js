@@ -10,29 +10,172 @@
 //git add .
 //git branch -M main
 //git remote add origin https://github.com.....
-//git push -u origin main
+//git push -u origin main or git push -f origin main
 
 import "./style.css";
-import javascriptLogo from "./javascript.svg";
-import viteLogo from "/vite.svg";
-import { setupCounter } from "./counter.js";
 
-document.querySelector("#app").innerHTML = `
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-    </a>
-    <h1>Hello Vite!</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite logo to learn more
-    </p>
-  </div>
-`;
+// sh deploy.sh
+import "./style.css";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ARButton } from "three/addons/webxr/ARButton.js";
+import CasualFlapMapImageUrl from "./CasualFlatMap.png";
 
-setupCounter(document.querySelector("#counter"));
+let camera, scene, renderer, controls;
+let controller;
+let occluderMaterial;
+let navigationArea;
+
+init();
+
+function init() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    20
+  );
+  camera.position.z = 5;
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setAnimationLoop(render);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  const ambient = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+  ambient.position.set(0.5, 1, 0.25);
+  scene.add(ambient);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  document.body.appendChild(ARButton.createButton(renderer));
+  controller = renderer.xr.getController(0);
+  controller.addEventListener("select", () => {
+    const tapGeometry = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+    const tapMaterial = new THREE.MeshPhongMaterial({
+      color: 0xffffff * Math.random(),
+    });
+    const tapMesh = new THREE.Mesh(tapGeometry, tapMaterial);
+    tapMesh.position.set(0, 0, -0.3).applyMatrix4(controller.matrixWorld);
+    tapMesh.setRotationFromMatrix(controller.matrixWorld);
+    tapMesh.renderOrder = 3;
+    navigationArea.attach(tapMesh);
+  });
+  scene.add(controller);
+
+  function render(time) {
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  function setupGeometry() {
+    // create occluder material
+    occluderMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    occluderMaterial.colorWrite = false;
+
+    // create room map
+    navigationArea = new THREE.Group();
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(-4.85, 1, -0.74),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.0625, 3, 1.578)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(-2.98, 1, -2.65),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.0625, 3, 3.51)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(1, 1, -2.55),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.0625, 3, 3.467)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(1, 1, 2.18),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.0625, 3, 4.475)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(-0.689, 1, 0),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(8.518, 3, 0.06)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(0.97, 1, -4.05),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(7.91, 3, 0.06)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(-3.34, 1, -1.29),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.86, 3, 0.06)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(4.86, 1, -0.01),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.06, 3, 9.114)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(-1.6, 1, -0.88),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(2.85, 3, 0.06)
+      )
+    );
+    navigationArea.add(
+      createWallElement(
+        new THREE.Vector3(2.9, 1, 4.06),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(4, 3, 0.06)
+      )
+    );
+    navigationArea.position.set(-2.8, -0.1, 2);
+    // create floor
+    const floorGeometry = new THREE.PlaneGeometry(10.2, 8.5);
+    const floorTexture = new THREE.TextureLoader().load(CasualFlapMapImageUrl);
+    const floorMaterial = new THREE.MeshBasicMaterial({ map: floorTexture });
+    const floorPlaneMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+    floorPlaneMesh.rotateX(THREE.MathUtils.degToRad(270));
+    floorPlaneMesh.renderOrder = 3;
+    navigationArea.add(floorPlaneMesh);
+
+    scene.add(navigationArea);
+  }
+
+  function createWallElement(position, rotation, scale) {
+    const occluderGeometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z);
+    const occluderMesh = new THREE.Mesh(occluderGeometry, occluderMaterial);
+    occluderMesh.position.set(position.x, position.y, position.z);
+    occluderMesh.renderOrder = 2;
+
+    return occluderMesh;
+  }
+  setupGeometry();
+}
